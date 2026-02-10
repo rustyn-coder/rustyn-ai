@@ -2,26 +2,19 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const env = require("../config/env");
 
-// Hash all passwords from env on startup so we never compare plaintext at runtime
+// Hash all passwords synchronously on module load so they are ready
+// before any request is handled (critical for Vercel serverless cold starts)
 // Map of lowercase username -> { username (original case), hashedPassword }
 const credentialMap = new Map();
-let credentialsReady = false;
 
-(async () => {
-  try {
-    for (const cred of env.LOGIN_CREDENTIALS) {
-      const salt = await bcrypt.genSalt(12);
-      const hashed = await bcrypt.hash(cred.password, salt);
-      credentialMap.set(cred.username.toLowerCase(), {
-        username: cred.username,
-        hashedPassword: hashed,
-      });
-    }
-    credentialsReady = true;
-  } catch (err) {
-    process.exit(1);
-  }
-})();
+for (const cred of env.LOGIN_CREDENTIALS) {
+  const salt = bcrypt.genSaltSync(12);
+  const hashed = bcrypt.hashSync(cred.password, salt);
+  credentialMap.set(cred.username.toLowerCase(), {
+    username: cred.username,
+    hashedPassword: hashed,
+  });
+}
 
 /**
  * Generate a signed JWT for the given username.
@@ -42,15 +35,7 @@ async function login(req, res) {
   try {
     const { username, password } = req.body;
 
-    // 1. Check if credentials are ready
-    if (!credentialsReady) {
-      return res.status(503).json({
-        success: false,
-        message: "Server is initializing. Please try again in a moment.",
-      });
-    }
-
-    // 2. Find matching user (case-insensitive)
+    // 1. Find matching user (case-insensitive)
     const entry = credentialMap.get(username.toLowerCase());
     if (!entry) {
       return res.status(401).json({
@@ -59,7 +44,7 @@ async function login(req, res) {
       });
     }
 
-    // 3. Check password against the bcrypt hash
+    // 2. Check password against the bcrypt hash
     const isMatch = await bcrypt.compare(password, entry.hashedPassword);
     if (!isMatch) {
       return res.status(401).json({
@@ -68,10 +53,10 @@ async function login(req, res) {
       });
     }
 
-    // 4. Generate JWT
+    // 3. Generate JWT
     const token = generateToken(entry.username);
 
-    // 5. Decode to get expiry for the client
+    // 4. Decode to get expiry for the client
     const decoded = jwt.decode(token);
 
     return res.status(200).json({
