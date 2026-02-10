@@ -1,5 +1,5 @@
-const jwt = require('jsonwebtoken');
-const env = require('../config/env');
+const jwt = require("jsonwebtoken");
+const env = require("../config/env");
 
 /**
  * Authentication Middleware
@@ -13,16 +13,17 @@ function authMiddleware(req, res, next) {
     if (!authHeader) {
       return res.status(401).json({
         success: false,
-        message: 'Access denied. No authorization header provided.',
+        message: "Access denied. No authorization header provided.",
       });
     }
 
     // Expect "Bearer <token>"
-    const parts = authHeader.split(' ');
-    if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    const parts = authHeader.split(" ");
+    if (parts.length !== 2 || parts[0] !== "Bearer") {
       return res.status(401).json({
         success: false,
-        message: 'Access denied. Invalid authorization format. Use: Bearer <token>',
+        message:
+          "Access denied. Invalid authorization format. Use: Bearer <token>",
       });
     }
 
@@ -40,24 +41,23 @@ function authMiddleware(req, res, next) {
 
     next();
   } catch (error) {
-    if (error.name === 'TokenExpiredError') {
+    if (error.name === "TokenExpiredError") {
       return res.status(401).json({
         success: false,
-        message: 'Access denied. Token has expired. Please log in again.',
+        message: "Access denied. Token has expired. Please log in again.",
       });
     }
 
-    if (error.name === 'JsonWebTokenError') {
+    if (error.name === "JsonWebTokenError") {
       return res.status(401).json({
         success: false,
-        message: 'Access denied. Invalid token.',
+        message: "Access denied. Invalid token.",
       });
     }
 
-    console.error('[Auth Middleware] Unexpected error:', error.message);
     return res.status(500).json({
       success: false,
-      message: 'Internal server error during authentication.',
+      message: "Internal server error during authentication.",
     });
   }
 }

@@ -10,7 +10,6 @@ let hashedPassword = null;
     const salt = await bcrypt.genSalt(12);
     hashedPassword = await bcrypt.hash(env.LOGIN_PASSWORD, salt);
   } catch (err) {
-    console.error("[Auth Controller] Failed to hash password:", err.message);
     process.exit(1);
   }
 })();
@@ -78,7 +77,6 @@ async function login(req, res) {
       },
     });
   } catch (error) {
-    console.error("[Auth Controller] Login error:", error.message);
     return res.status(500).json({
       success: false,
       message: "An unexpected error occurred during login.",

@@ -20,10 +20,6 @@ function notFoundHandler(req, res, next) {
  * Express identifies this as an error handler because it has 4 parameters.
  */
 function errorHandler(err, req, res, next) {
-  console.error(`[Error Handler] ${new Date().toISOString()}`);
-  console.error(`  Route: ${req.method} ${req.originalUrl}`);
-  console.error(`  Message: ${err.message}`);
-
   // Determine status code
   // If the error already has a statusCode attached, use it; otherwise 500
   const statusCode = err.statusCode || err.status || 500;

@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-const morgan = require("morgan");
+
 const rateLimit = require("express-rate-limit");
 
 // Load environment config (validates env vars on import)
@@ -81,10 +81,7 @@ app.use(
   }),
 );
 
-// 3. Request logging (combined format for structured log aggregation)
-app.use(morgan("combined"));
-
-// 4. Body parsers
+// 3. Body parsers
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
@@ -154,33 +151,22 @@ app.use(errorHandler);
 if (require.main === module) {
   const PORT = env.PORT;
 
-  app.listen(PORT, () => {
-    console.log(`[Server] Rustyn AI Backend started`);
-    console.log(`[Server] Environment: ${env.NODE_ENV}`);
-    console.log(`[Server] Port: ${PORT}`);
-    console.log(`[Server] Ready at http://localhost:${PORT}`);
-  });
+  app.listen(PORT, () => {});
 
   // Graceful shutdown
   process.on("SIGINT", () => {
-    console.log("[Server] SIGINT received. Shutting down gracefully...");
     process.exit(0);
   });
 
   process.on("SIGTERM", () => {
-    console.log("[Server] SIGTERM received. Shutting down gracefully...");
     process.exit(0);
   });
 
-  process.on("uncaughtException", (err) => {
-    console.error("[Server] Uncaught Exception:", err.message);
+  process.on("uncaughtException", () => {
     process.exit(1);
   });
 
-  process.on("unhandledRejection", (reason, promise) => {
-    console.error("[Server] Unhandled Rejection at:", promise);
-    console.error("[Server] Reason:", reason);
-  });
+  process.on("unhandledRejection", () => {});
 }
 
 // Export the Express app for Vercel serverless

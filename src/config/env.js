@@ -11,12 +11,6 @@ const requiredVars = ["LOGIN_USERNAME", "LOGIN_PASSWORD", "JWT_SECRET"];
 // Validate all required environment variables are present
 const missing = requiredVars.filter((key) => !process.env[key]);
 if (missing.length > 0) {
-  console.error(
-    `[ENV] Missing required environment variables: ${missing.join(", ")}`,
-  );
-  console.error(
-    "[ENV] Set them in your .env file (local) or Vercel dashboard (production).",
-  );
   process.exit(1);
 }
 
