@@ -58,6 +58,16 @@ app.use(
         return callback(null, true);
       }
 
+      // Allow Electron app protocols (file://, app://, custom protocols)
+      if (
+        origin &&
+        (origin.startsWith("file://") ||
+          origin.startsWith("app://") ||
+          origin.startsWith("rustyn://"))
+      ) {
+        return callback(null, true);
+      }
+
       // Allow any *.vercel.app subdomain (for Vercel preview/production deployments)
       if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
         return callback(null, true);
