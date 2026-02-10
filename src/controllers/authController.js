@@ -2,13 +2,22 @@ const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const env = require("../config/env");
 
-// Hash the password from env on startup so we never compare plaintext at runtime
-let hashedPassword = null;
+// Hash all passwords from env on startup so we never compare plaintext at runtime
+// Map of lowercase username -> { username (original case), hashedPassword }
+const credentialMap = new Map();
+let credentialsReady = false;
 
 (async () => {
   try {
-    const salt = await bcrypt.genSalt(12);
-    hashedPassword = await bcrypt.hash(env.LOGIN_PASSWORD, salt);
+    for (const cred of env.LOGIN_CREDENTIALS) {
+      const salt = await bcrypt.genSalt(12);
+      const hashed = await bcrypt.hash(cred.password, salt);
+      credentialMap.set(cred.username.toLowerCase(), {
+        username: cred.username,
+        hashedPassword: hashed,
+      });
+    }
+    credentialsReady = true;
   } catch (err) {
     process.exit(1);
   }
@@ -33,23 +42,25 @@ async function login(req, res) {
   try {
     const { username, password } = req.body;
 
-    // 1. Check username (case-insensitive)
-    if (username.toLowerCase() !== env.LOGIN_USERNAME.toLowerCase()) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid username or password.",
-      });
-    }
-
-    // 2. Check password against the bcrypt hash
-    if (!hashedPassword) {
+    // 1. Check if credentials are ready
+    if (!credentialsReady) {
       return res.status(503).json({
         success: false,
         message: "Server is initializing. Please try again in a moment.",
       });
     }
 
-    const isMatch = await bcrypt.compare(password, hashedPassword);
+    // 2. Find matching user (case-insensitive)
+    const entry = credentialMap.get(username.toLowerCase());
+    if (!entry) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid username or password.",
+      });
+    }
+
+    // 3. Check password against the bcrypt hash
+    const isMatch = await bcrypt.compare(password, entry.hashedPassword);
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -57,10 +68,10 @@ async function login(req, res) {
       });
     }
 
-    // 3. Generate JWT
-    const token = generateToken(username);
+    // 4. Generate JWT
+    const token = generateToken(entry.username);
 
-    // 4. Decode to get expiry for the client
+    // 5. Decode to get expiry for the client
     const decoded = jwt.decode(token);
 
     return res.status(200).json({
@@ -72,7 +83,7 @@ async function login(req, res) {
         expiresIn: env.JWT_EXPIRES_IN,
         expiresAt: new Date(decoded.exp * 1000).toISOString(),
         user: {
-          username: env.LOGIN_USERNAME,
+          username: entry.username,
         },
       },
     });
