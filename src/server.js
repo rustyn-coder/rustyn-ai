@@ -36,7 +36,12 @@ app.use(
       // Allow requests with no origin or null origin (Electron file://, server-to-server)
       if (!origin || origin === "null") return callback(null, true);
 
-      const allowedOrigins = [];
+      const allowedOrigins = [
+        "http://localhost:5180",
+        "http://localhost:3001",
+        "http://127.0.0.1:5180",
+        "http://127.0.0.1:3001",
+      ];
 
       // Add configured CORS origin(s)
       if (env.CORS_ORIGIN) {
