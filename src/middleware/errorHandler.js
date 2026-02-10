@@ -20,32 +20,22 @@ function notFoundHandler(req, res, next) {
  * Express identifies this as an error handler because it has 4 parameters.
  */
 function errorHandler(err, req, res, next) {
-  // Log the error (full stack in development, message only in production)
-  const isDev = process.env.NODE_ENV !== 'production';
-
-  console.error(`\n[Error Handler] ${new Date().toISOString()}`);
+  console.error(`[Error Handler] ${new Date().toISOString()}`);
   console.error(`  Route: ${req.method} ${req.originalUrl}`);
   console.error(`  Message: ${err.message}`);
-  if (isDev && err.stack) {
-    console.error(`  Stack: ${err.stack}`);
-  }
 
   // Determine status code
   // If the error already has a statusCode attached, use it; otherwise 500
   const statusCode = err.statusCode || err.status || 500;
 
-  // Build the response
+  // Build the response — never expose internals to the client
   const response = {
     success: false,
-    message: statusCode === 500 && !isDev
-      ? 'Internal server error. Please try again later.'
-      : err.message || 'Something went wrong.',
+    message:
+      statusCode === 500
+        ? "Internal server error. Please try again later."
+        : err.message || "Something went wrong.",
   };
-
-  // Include stack trace in development only
-  if (isDev) {
-    response.stack = err.stack;
-  }
 
   // Include validation errors if present
   if (err.errors) {

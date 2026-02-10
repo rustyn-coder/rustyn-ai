@@ -4,7 +4,7 @@ const helmet = require("helmet");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 
-// Load environment config (validates .env on import)
+// Load environment config (validates env vars on import)
 const env = require("./config/env");
 
 // Import routes
@@ -26,32 +26,28 @@ const app = express();
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
-    contentSecurityPolicy: env.isDev ? false : undefined,
   }),
 );
 
-// 2. CORS — allow requests from the Electron app
+// 2. CORS — allow requests from configured origins
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin (curl, Postman, Electron main process)
-      if (!origin) return callback(null, true);
+      // Allow requests with no origin or null origin (Electron file://, server-to-server)
+      if (!origin || origin === "null") return callback(null, true);
 
-      const allowedOrigins = [
-        env.CORS_ORIGIN,
-        "http://localhost:5180",
-        "http://localhost:3001",
-        "http://127.0.0.1:5180",
-        "http://127.0.0.1:3001",
-      ];
+      const allowedOrigins = [];
 
-      // Also allow any CORS_ORIGIN values if comma-separated
-      if (env.CORS_ORIGIN && env.CORS_ORIGIN.includes(",")) {
-        env.CORS_ORIGIN.split(",")
-          .map((o) => o.trim())
-          .forEach((o) => {
-            if (o && !allowedOrigins.includes(o)) allowedOrigins.push(o);
-          });
+      // Add configured CORS origin(s)
+      if (env.CORS_ORIGIN) {
+        if (env.CORS_ORIGIN.includes(",")) {
+          env.CORS_ORIGIN.split(",")
+            .map((o) => o.trim())
+            .filter(Boolean)
+            .forEach((o) => allowedOrigins.push(o));
+        } else {
+          allowedOrigins.push(env.CORS_ORIGIN);
+        }
       }
 
       if (allowedOrigins.includes(origin)) {
@@ -60,21 +56,15 @@ app.use(
 
       // Allow Electron app protocols (file://, app://, custom protocols)
       if (
-        origin &&
-        (origin.startsWith("file://") ||
-          origin.startsWith("app://") ||
-          origin.startsWith("rustyn://"))
+        origin.startsWith("file://") ||
+        origin.startsWith("app://") ||
+        origin.startsWith("rustyn://")
       ) {
         return callback(null, true);
       }
 
       // Allow any *.vercel.app subdomain (for Vercel preview/production deployments)
       if (/^https:\/\/.*\.vercel\.app$/.test(origin)) {
-        return callback(null, true);
-      }
-
-      // In dev mode, allow all origins
-      if (env.isDev) {
         return callback(null, true);
       }
 
@@ -86,12 +76,8 @@ app.use(
   }),
 );
 
-// 3. Request logging
-if (env.isDev) {
-  app.use(morgan("dev"));
-} else {
-  app.use(morgan("combined"));
-}
+// 3. Request logging (combined format for structured log aggregation)
+app.use(morgan("combined"));
 
 // 4. Body parsers
 app.use(express.json({ limit: "1mb" }));
@@ -141,14 +127,6 @@ app.get("/", (req, res) => {
     message: "Rustyn AI Backend is running.",
     version: "1.0.0",
     timestamp: new Date().toISOString(),
-    endpoints: {
-      health: "GET  /",
-      authHealth: "GET  /api/auth/health",
-      login: "POST /api/auth/login",
-      verify: "GET  /api/auth/verify",
-      profile: "GET  /api/auth/profile",
-      logout: "POST /api/auth/logout",
-    },
   });
 });
 
@@ -172,31 +150,25 @@ if (require.main === module) {
   const PORT = env.PORT;
 
   app.listen(PORT, () => {
-    console.log("\n============================================");
-    console.log(`  Rustyn AI Backend`);
-    console.log(`  Environment : ${env.NODE_ENV}`);
-    console.log(`  Port        : ${PORT}`);
-    console.log(`  CORS Origin : ${env.CORS_ORIGIN}`);
-    console.log(`  Login User  : ${env.LOGIN_USERNAME}`);
-    console.log("============================================");
-    console.log(`  Server ready at http://localhost:${PORT}`);
-    console.log("============================================\n");
+    console.log(`[Server] Rustyn AI Backend started`);
+    console.log(`[Server] Environment: ${env.NODE_ENV}`);
+    console.log(`[Server] Port: ${PORT}`);
+    console.log(`[Server] Ready at http://localhost:${PORT}`);
   });
 
   // Graceful shutdown
   process.on("SIGINT", () => {
-    console.log("\n[Server] SIGINT received. Shutting down gracefully...");
+    console.log("[Server] SIGINT received. Shutting down gracefully...");
     process.exit(0);
   });
 
   process.on("SIGTERM", () => {
-    console.log("\n[Server] SIGTERM received. Shutting down gracefully...");
+    console.log("[Server] SIGTERM received. Shutting down gracefully...");
     process.exit(0);
   });
 
   process.on("uncaughtException", (err) => {
     console.error("[Server] Uncaught Exception:", err.message);
-    console.error(err.stack);
     process.exit(1);
   });
 
@@ -206,5 +178,5 @@ if (require.main === module) {
   });
 }
 
-// Export the Express app for Vercel serverless and for testing
+// Export the Express app for Vercel serverless
 module.exports = app;

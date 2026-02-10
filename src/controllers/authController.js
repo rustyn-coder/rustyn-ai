@@ -1,17 +1,16 @@
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const env = require('../config/env');
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const env = require("../config/env");
 
-// Hash the password from .env on startup so we never compare plaintext at runtime
+// Hash the password from env on startup so we never compare plaintext at runtime
 let hashedPassword = null;
 
 (async () => {
   try {
     const salt = await bcrypt.genSalt(12);
     hashedPassword = await bcrypt.hash(env.LOGIN_PASSWORD, salt);
-    console.log('[Auth Controller] Password hash generated successfully.');
   } catch (err) {
-    console.error('[Auth Controller] Failed to hash password:', err.message);
+    console.error("[Auth Controller] Failed to hash password:", err.message);
     process.exit(1);
   }
 })();
@@ -20,20 +19,16 @@ let hashedPassword = null;
  * Generate a signed JWT for the given username.
  */
 function generateToken(username) {
-  return jwt.sign(
-    { username },
-    env.JWT_SECRET,
-    { expiresIn: env.JWT_EXPIRES_IN }
-  );
+  return jwt.sign({ username }, env.JWT_SECRET, {
+    expiresIn: env.JWT_EXPIRES_IN,
+  });
 }
 
 /**
  * POST /api/auth/login
  *
- * Authenticates the user against credentials stored in .env.
+ * Authenticates the user against credentials stored in environment variables.
  * Returns a JWT on success.
- *
- * Body: { "username": "...", "password": "..." }
  */
 async function login(req, res) {
   try {
@@ -43,16 +38,15 @@ async function login(req, res) {
     if (username.toLowerCase() !== env.LOGIN_USERNAME.toLowerCase()) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid username or password.',
+        message: "Invalid username or password.",
       });
     }
 
     // 2. Check password against the bcrypt hash
     if (!hashedPassword) {
-      // Edge case: hash hasn't been generated yet (server just started)
       return res.status(503).json({
         success: false,
-        message: 'Server is initializing. Please try again in a moment.',
+        message: "Server is initializing. Please try again in a moment.",
       });
     }
 
@@ -60,7 +54,7 @@ async function login(req, res) {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid username or password.',
+        message: "Invalid username or password.",
       });
     }
 
@@ -72,10 +66,10 @@ async function login(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: 'Login successful.',
+      message: "Login successful.",
       data: {
         token,
-        tokenType: 'Bearer',
+        tokenType: "Bearer",
         expiresIn: env.JWT_EXPIRES_IN,
         expiresAt: new Date(decoded.exp * 1000).toISOString(),
         user: {
@@ -84,10 +78,10 @@ async function login(req, res) {
       },
     });
   } catch (error) {
-    console.error('[Auth Controller] Login error:', error.message);
+    console.error("[Auth Controller] Login error:", error.message);
     return res.status(500).json({
       success: false,
-      message: 'An unexpected error occurred during login.',
+      message: "An unexpected error occurred during login.",
     });
   }
 }
@@ -96,12 +90,12 @@ async function login(req, res) {
  * GET /api/auth/verify
  *
  * Verifies that the caller's JWT is still valid.
- * Requires: Authorization: Bearer <token>  (handled by auth middleware)
+ * Requires: Authorization: Bearer <token> (handled by auth middleware)
  */
 function verify(req, res) {
   return res.status(200).json({
     success: true,
-    message: 'Token is valid.',
+    message: "Token is valid.",
     data: {
       user: {
         username: req.user.username,
@@ -116,16 +110,16 @@ function verify(req, res) {
  * GET /api/auth/profile
  *
  * Returns the authenticated user's profile information.
- * Requires: Authorization: Bearer <token>  (handled by auth middleware)
+ * Requires: Authorization: Bearer <token> (handled by auth middleware)
  */
 function profile(req, res) {
   return res.status(200).json({
     success: true,
-    message: 'Profile retrieved successfully.',
+    message: "Profile retrieved successfully.",
     data: {
       user: {
         username: req.user.username,
-        role: 'admin',
+        role: "admin",
       },
       session: {
         issuedAt: new Date(req.user.iat * 1000).toISOString(),
@@ -138,13 +132,12 @@ function profile(req, res) {
 /**
  * POST /api/auth/logout
  *
- * Stateless logout - instructs the client to discard the token.
- * In a production app you would add the token to a blacklist/revocation store.
+ * Stateless logout — instructs the client to discard the token.
  */
 function logout(req, res) {
   return res.status(200).json({
     success: true,
-    message: 'Logged out successfully. Please discard your token.',
+    message: "Logged out successfully. Please discard your token.",
   });
 }
 
